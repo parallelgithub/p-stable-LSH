@@ -7,10 +7,12 @@ object LSH {
 
 
 	val parameterW = 4.0
+	val radiusR = 1.0
 
 	//from http://picomath.org/scala/Erf.scala.html
+	//   & http://www.johndcook.com/blog/cpp_erf/
 	//It is correct, can be better...
-	def ERFC(x: Double): Double =  {
+	def ERF(x: Double): Double =  {
 		val a1: Double =  0.254829592;
 		val a2: Double = -0.284496736;
 		val a3: Double =  1.421413741;
@@ -30,20 +32,23 @@ object LSH {
 	//from E2LSH code in SelfTuring.cpp
 	//w: bin width
 	//c: | vector_x - vector_y | , i.e. distance of 2 point
+	//it is OK
 	def computeFunctionP(w: Double, c: Double):Double = {
 		  val x = w / c;
 			val M_SQRT2 = math.sqrt(2.0)
 			val M_2_SQRTPI = 2.0 / math.sqrt(math.Pi)
-			1 - ERFC(x / M_SQRT2) - M_2_SQRTPI / M_SQRT2 / x * (1 - math.exp(-(x*x) / 2));
+			ERF(x / M_SQRT2) - M_2_SQRTPI / M_SQRT2 / x * (1 - math.exp(-(x*x) / 2));
 	}
 
+	//from E2LSH & manual
 	def computeLfromKP(k: Int, successProbability: Double):Int = {
-		  math.ceil(math.log(1 - successProbability) / math.log(1 - math.pow(computeFunctionP(parameterW, 1.0), k))).toInt;
+			val p1 = computeFunctionP(parameterW, radiusR)
+		  math.ceil(math.log(1 - successProbability) / math.log(1 - math.pow(p1, k))).toInt;
 	}
 
+	//from the original paper
+	//   & http://cseweb.ucsd.edu/~dasgupta/254-embeddings/lawrence.pdf
 	def computeK(p2: Double,n: Int): Int = {
-		//println(math.log(n))
-		//println("p2 = " + p2)
 		(math.log(n)/math.log(1.0/p2)).toInt
 	}
 
@@ -56,18 +61,14 @@ object LSH {
 		val numberOfVectors = learnVectors.length
 		val dimention = learnVectors(1).length
 
-		//from the original paper
+		//from the original paper & we let p2 = p(1.0)
 		val parameterK = computeK(computeFunctionP(parameterW, 1.0), numberOfVectors)
+		println("p(1.0) = " + computeFunctionP(parameterW,1.0))
 		println("k = " + parameterK)
 
-		//The value will be minus because radius is less than bin width
+		//?The value will be minus because radius is less than bin width
 		//println("p(R=1.0) = computeFunctionP(4.0,1.0) = " + computeFunctionP(4.0,1.0))
 
-		var i = 5.0
-		for (a <- 1 to 10){
-			println("p(R=" + i + ") = " + computeFunctionP(4.0,i));
-			i = i+1.0
-		}
 
 		//learnVectors: 25000 * 128 List
 
