@@ -9,6 +9,7 @@ object LSH {
 	val parameterW = 4.0
 
 	//from http://picomath.org/scala/Erf.scala.html
+	//It is correct, can be better...
 	def ERFC(x: Double): Double =  {
 		val a1: Double =  0.254829592;
 		val a2: Double = -0.284496736;
@@ -27,6 +28,8 @@ object LSH {
 	}
 
 	//from E2LSH code in SelfTuring.cpp
+	//w: bin width
+	//c: | vector_x - vector_y | , i.e. distance of 2 point
 	def computeFunctionP(w: Double, c: Double):Double = {
 		  val x = w / c;
 			val M_SQRT2 = math.sqrt(2.0)
@@ -34,8 +37,14 @@ object LSH {
 			1 - ERFC(x / M_SQRT2) - M_2_SQRTPI / M_SQRT2 / x * (1 - math.exp(-(x*x) / 2));
 	}
 
-	def computeL(dd: Int, successProbability: Double):Int = {
-		  math.ceil(math.log(1 - successProbability) / math.log(1 - math.pow(computeFunctionP(parameterW, 1.0), dd))).toInt;
+	def computeLfromKP(k: Int, successProbability: Double):Int = {
+		  math.ceil(math.log(1 - successProbability) / math.log(1 - math.pow(computeFunctionP(parameterW, 1.0), k))).toInt;
+	}
+
+	def computeK(p2: Double,n: Int): Int = {
+		//println(math.log(n))
+		//println("p2 = " + p2)
+		(math.log(n)/math.log(1.0/p2)).toInt
 	}
 
 
@@ -44,17 +53,27 @@ object LSH {
 		val queryVectors = Source.fromFile("../dataset/sift/siftsmall/query.input").getLines.toList.map{_.split(" ").toIndexedSeq}
 		val learnVectors = Source.fromFile("../dataset/sift/siftsmall/learn.input").getLines.toList.map{_.split(" ").map{_.toDouble}.toIndexedSeq}
 
+		val numberOfVectors = learnVectors.length
 		val dimention = learnVectors(1).length
 
-		//learnVectors: 25000 * 128 List
-		/*
-		for (query <- queryVectors){
-			if(learnVectors.contains(query))
-					println("Query #"+queryVectors.indexOf(query)+" is in learnVector #"+learnVectors.indexOf(query))
+		//from the original paper
+		val parameterK = computeK(computeFunctionP(parameterW, 1.0), numberOfVectors)
+		println("k = " + parameterK)
+
+		//The value will be minus because radius is less than bin width
+		//println("p(R=1.0) = computeFunctionP(4.0,1.0) = " + computeFunctionP(4.0,1.0))
+
+		var i = 5.0
+		for (a <- 1 to 10){
+			println("p(R=" + i + ") = " + computeFunctionP(4.0,i));
+			i = i+1.0
 		}
-		*/
+
+		//learnVectors: 25000 * 128 List
+
 		
 		var a = 0
+		/*
 		for (vector <- learnVectors){
 
 			val vectorA = IndexedSeq.fill(dimention)(Random.nextGaussian())
@@ -69,6 +88,7 @@ object LSH {
 			a += 1
 			}
 		}
+		*/
 
 	}
 }
