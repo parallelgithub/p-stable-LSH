@@ -5,9 +5,11 @@ import scala.math
 
 object LSH {
 
+	val prime = 2147483647
 
-	val parameterW = 4.0
+	val binWidthW = 4.0
 	val radiusR = 1.0
+	val successProbability = 0.9
 
 	//from http://picomath.org/scala/Erf.scala.html
 	//   & http://www.johndcook.com/blog/cpp_erf/
@@ -41,9 +43,9 @@ object LSH {
 	}
 
 	//from E2LSH & manual
-	def computeLfromKP(k: Int, successProbability: Double):Int = {
-			val p1 = computeFunctionP(parameterW, radiusR)
-		  math.ceil(math.log(1 - successProbability) / math.log(1 - math.pow(p1, k))).toInt;
+	def computeLfromKP(k: Int, successProb: Double):Int = {
+			val p1 = computeFunctionP(binWidthW, radiusR)
+		  math.ceil(math.log(1 - successProb) / math.log(1 - math.pow(p1, k))).toInt;
 	}
 
 	//from the original paper
@@ -59,12 +61,12 @@ object LSH {
 		val learnVectors = Source.fromFile("../dataset/sift/siftsmall/learn.input").getLines.toList.map{_.split(" ").map{_.toDouble}.toIndexedSeq}
 
 		val numberOfVectors = learnVectors.length
-		val dimention = learnVectors(1).length
+		val dimension = learnVectors(1).length
 
 		//from the original paper & we let p2 = p(1.0)
-		val parameterK = computeK(computeFunctionP(parameterW, 1.0), numberOfVectors)
-		println("p(1.0) = " + computeFunctionP(parameterW,1.0))
-		println("k = " + parameterK)
+		val dimensionK = computeK(computeFunctionP(binWidthW, radiusR), numberOfVectors)
+		val numberOfTablesL = computeLfromKP(dimensionK,successProbability)
+		val tableSize = numberOfVectors
 
 		//?The value will be minus because radius is less than bin width
 		//println("p(R=1.0) = computeFunctionP(4.0,1.0) = " + computeFunctionP(4.0,1.0))
@@ -72,24 +74,46 @@ object LSH {
 
 		//learnVectors: 25000 * 128 List
 
+		val hashFunctionH1 = IndexedSeq.fill(dimensionK)((Random.nextDouble()*prime).toLong)
+		val hashFunctionH2 = IndexedSeq.fill(dimensionK)((Random.nextDouble()*prime).toLong)
 		
 		var a = 0
-		/*
+		
 		for (vector <- learnVectors){
 
-			val vectorA = IndexedSeq.fill(dimention)(Random.nextGaussian())
-			
-			val parameterB = Random.nextDouble() * parameterW
+			def lshFunctionH(): Int = {
+				val vectorA = IndexedSeq.fill(dimension)(Random.nextGaussian())
+				
+				val parameterB = Random.nextDouble() * binWidthW
 
-			val dot = (vector zip vectorA).map{case (a,b) => a * b}.foldLeft(0.0)(_+_)
-			val hashValue = math.floor((dot + parameterB)/parameterW).toInt
-			if(a<20){
-			//println("a = " + vectorA)
-			//println(hashValue)
-			a += 1
+				val dot = (vector zip vectorA).map{case (a,b) => a * b}.foldLeft(0.0)(_+_)
+
+				math.floor((dot + parameterB)/binWidthW).toInt
 			}
+
+			val vectorG = List.fill(dimensionK)(lshFunctionH)
+
+			def computePrimaryHash(h1: IndexedSeq[Long]) = {
+				val dot = (vectorG zip h1).map{case (a,b) => a * b}.foldLeft(0L)(_+_)
+				val hashValue: Int = ((dot % prime)%tableSize).toInt
+				println("hash value: " + hashValue.getClass +" " +hashValue)
+			}
+
+			def computeSecondaryHash(h2: IndexedSeq[Long]) = {
+				val dot = (vectorG zip h2).map{case (a,b) => a * b}.foldLeft(0L)(_+_)
+				val hashValue: Int = (dot % prime).toInt
+				println("hash value: " + hashValue.getClass +" "+hashValue)
+			}
+
+			if (a < 10){
+				computePrimaryHash(hashFunctionH1)
+				computeSecondaryHash(hashFunctionH2)
+				println
+				a += 1
+			}
+				
 		}
-		*/
+		
 
 	}
 }
