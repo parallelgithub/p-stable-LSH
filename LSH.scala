@@ -57,16 +57,17 @@ object LSH {
 	class HashFunctions(numberOfFunctionG: Int,
 	                    dimensionOfVectorG: Int,
 	                    dimensionOfVectorA: Int, 
-	                    binWidthW: Double ){
+	                    tableSize: Int, 
+	                    inWidthW: Double ){
 
 		case class lshFunctionParameter(vectorA: Vector[Double], parameterB: Double)
 		
 
 		val functionG = List.fill(numberOfFunctionG)(
 			List.fill(dimensionOfVectorG)(
-				new lshFunctionParameter(Vector.fill(
-															 dimensionOfVectorA)(Random.nextGaussian()),
-														     Random.nextDouble() * binWidthW)
+				new lshFunctionParameter(
+					Vector.fill(dimensionOfVectorA)(Random.nextGaussian()),
+					Random.nextDouble() * binWidthW)
 			)
 		)
 
@@ -83,50 +84,65 @@ object LSH {
 		val functionH1 = IndexedSeq.fill(dimensionOfVectorG)((Random.nextDouble()*prime).toLong)
 		val functionH2 = IndexedSeq.fill(dimensionOfVectorG)((Random.nextDouble()*prime).toLong)
 
-			def primaryHash(v: IndexedSeq[Int], tableSize: Int) = {
-				val dot = (v zip functionH1).map{case (a,b) => a * b}.foldLeft(0L)(_+_)
-				val hashValue: Int = ((dot % prime)%tableSize).toInt
-				hashValue
-			}
+		private def primaryHash(v: IndexedSeq[Int], tableSize: Int) = {
+			val dot = (v zip functionH1).map{case (a,b) => a * b}.foldLeft(0L)(_+_)
+			val x = dot % prime
+			if (x < 0)
+				((x + prime) % tableSize).toInt
+			else 
+				(x % tableSize).toInt
+			//val hashValue: Int = ((dot % prime)%tableSize).toInt
+			//hashValue
+		}
 
-			//dot = the value of inner product
-			//the return value is dot%prime (or dot%prime + prime when negative)
-			//  where prime = (1L << 29) - 33
-			def secondaryHash(v: IndexedSeq[Int]) = {
-				val zipVector = (v zip functionH2).map{case (a,b) => a * b}
+		//dot = the value of inner product
+		//the return value is dot%prime (or dot%prime + prime when negative)
+		//  where prime = (1L << 29) - 33
+		private def secondaryHash(v: IndexedSeq[Int]) = {
+			val zipVector = (v zip functionH2).map{case (a,b) => a * b}
 
-				val bitFilter =  (1L << 29) - 1
-				val dot = zipVector.foldLeft(0L) ( (x,y) => {
-					val z = x + y
-					(z & bitFilter) +	33 * (z >> 29)
-					}	
-				)
-				val hashValue: Int = if (dot>=prime) (dot-prime).toInt else dot.toInt
-				hashValue
-			}
+			val bitFilter =  (1L << 29) - 1
+			val dot = zipVector.foldLeft(0L) ( (x,y) => {
+				val z = x + y
+				(z & bitFilter) +	33 * (z >> 29)
+				}	
+			)
+			val hashValue: Int = if (dot>=prime) (dot-prime).toInt else dot.toInt
+			hashValue
+		}
 
-			def tableHash(vectorG: List[Vector[Int]], tableSize: Int) = {
+		val table = Vector.fill(numberOfFunctionG)(Vector.fill(tableSize)(Nil))
 
-				vectorG.foreach(x => {
-					primaryHash(x, tableSize)
-					secondaryHash(x)
-				})
-			}
+		//vectorG means g_i(v) for given v and for all i belonging to L
+		def tableingHash(reducedVectors: List[Vector[Int]], indexOfVector: Int) = {
+
+			//For a given original vector v, assume g_i is the i-th lsh function
+			//v is reduced to reducedVectors(0) by g_0
+			//v is reduced to reducedVectors(1) by g_1 ...
+			reducedVectors.zipWithIndex.foreach { case(reducedVec, indexOflshFunction) => {
+				val hashValue1 = primaryHash(reducedVec, tableSize)
+				val hashValue2 = secondaryHash(reducedVec)
+				
+				val oldList = table(indexOflshFunction)(hashValue1) 
+				val newElement = (hashValue2, indexOfVector)
+				*** = table(indexOflshFunction).updated(hashValue1, newElement )
+			}}
+		}
 	}
 
 	def main(args: Array[String]){
 		//val baseVectors = Source.fromFile("../dataset/sift/siftsmall/base.input").getLines.toList.map{_.split(" ").map{_.toDouble}.toVector}
 		//val queryVectors = Source.fromFile("../dataset/sift/siftsmall/query.input").getLines.toList.map{_.split(" ").toVector}
-		val learnVectors = Source.fromFile("../dataset/sift/siftsmall/learn.input").getLines.toList.map{_.split(" ").map{_.toDouble}.toVector}
+		val learnVectors = Source.fromFile("../dataset/learn.input").getLines.toList.map{_.split(" ").map{_.toDouble}.toVector}
 
 		val numberOfVectors = learnVectors.length
 		val dimensionD = learnVectors(1).length
 
 		//from the original paper & we let p2 = p(radiusR=1.0)
 		//val dimensionK = computeK(computeFunctionP(binWidthW, radiusR), numberOfVectors)
-		val dimensionK = 20
+		val dimensionK = 5 
 		//val numberOflshL = computeLfromKP(dimensionK,successProbability)
-		val numberOflshL = 10
+		val numberOflshL = 2
 		val tableSize = numberOfVectors
 
 
@@ -137,35 +153,19 @@ object LSH {
 		//learnVectors: 25000 * 128 List
 
 		
-		val hashFn = new HashFunctions(numberOflshL, dimensionK, dimensionD, binWidthW)
+		val hashFn = new HashFunctions(numberOflshL, dimensionK, dimensionD, tableSize, binWidthW)
 		
 		var a = 0
 
 		//改成讀一行即掉
-		for (vector <- learnVectors){
+		learnVectors.zipWithIndex.foreach( {case (vector, indexOfVector) => {
 
-/*
-			def lshFunctionH(): Int = {
-				val vectorA = IndexedSeq.fill(dimensionD)(Random.nextGaussian())
-				val parameterB = Random.nextDouble() * binWidthW
-				val dot = (vector zip vectorA).map{case (a,b) => a * b}.foldLeft(0.0)(_+_)
-				math.floor((dot + parameterB)/binWidthW).toInt
-			}
-			val vectorG = List.fill(dimensionK)(lshFunctionH)
-*/
-			val vectorG = hashFn.dotHash(vector)
+			val reducedVectors = hashFn.dotHash(vector)
 
-
-			//if (a < 10){
-				//hashFn.computePrimaryHash(hashFn.functionH1)
-				//hashFn.computeSecondaryHash(hashFn.functionH2)
-
-				hashFn.tableHash(vectorG, tableSize)
-				//a += 1
-			//}
+			hashFn.tableingHash(reducedVectors, indexOfVector)
 				
-		} //end of for( <- learnvector)
-
+		}}) //end of foreach
+		println(hashFn.table)
 
 	} //end of def main()
 }
