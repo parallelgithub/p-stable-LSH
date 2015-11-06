@@ -165,7 +165,21 @@ object LSH {
 			hashFn.tableingHash(reducedVectors, indexOfVector)
 				
 		}}) //end of foreach
-		println(hashFn.table)
+
+		def computeHashValue(learnVec: ,table: ): = {
+			learnVec match {
+				case Nil => 
+				case head :: tail => {
+					val reducedVectors = hashFn.dotHash(head)
+					val newTable = hasFn.tablingHash(reducedVectors,table)
+					computeHashValue(tail,newTable)
+				}
+				case _ =>
+			}
+		}
+		val emptyTable = 
+		      Vector.fill(numberOfFunctionG)(List.fill(tableSize)(Nil))
+		val table = computeHashValue(learnVectors,emptyTable)
 
 	} //end of def main()
 }
