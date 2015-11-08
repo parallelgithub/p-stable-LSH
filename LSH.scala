@@ -60,15 +60,13 @@ object LSH {
 	                    tableSize: Int, 
 	                    inWidthW: Double ){
 
-		case class lshFunctionParameter(vectorA: Vector[Double], parameterB: Double)
+		private case class lshFunctionParameter(vectorA: Vector[Double], parameterB: Double)
 		
 
-		val functionG = List.fill(numberOfFunctionG)(
-			List.fill(dimensionOfVectorG)(
+		private val functionG = List.fill(numberOfFunctionG, dimensionOfVectorG)(
 				new lshFunctionParameter(
 					Vector.fill(dimensionOfVectorA)(Random.nextGaussian()),
 					Random.nextDouble() * binWidthW)
-			)
 		)
 
 		def dotHash(vectorV: Vector[Double]) = {
@@ -81,8 +79,8 @@ object LSH {
 			
 		}
 
-		val functionH1 = IndexedSeq.fill(dimensionOfVectorG)((Random.nextDouble()*prime).toLong)
-		val functionH2 = IndexedSeq.fill(dimensionOfVectorG)((Random.nextDouble()*prime).toLong)
+		private val functionH1 = IndexedSeq.fill(dimensionOfVectorG)((Random.nextDouble()*prime).toLong)
+		private val functionH2 = IndexedSeq.fill(dimensionOfVectorG)((Random.nextDouble()*prime).toLong)
 
 		private def primaryHash(v: IndexedSeq[Int], tableSize: Int) = {
 			val dot = (v zip functionH1).map{case (a,b) => a * b}.foldLeft(0L)(_+_)
@@ -111,23 +109,47 @@ object LSH {
 			hashValue
 		}
 
-		val table = Vector.fill(numberOfFunctionG)(Vector.fill(tableSize)(Nil))
-
 		//vectorG means g_i(v) for given v and for all i belonging to L
-		def tableingHash(reducedVectors: List[Vector[Int]], indexOfVector: Int) = {
+		def tableHash(reducedVectors: List[Vector[Int]], 
+		                 nameOfVec: Int,
+										 table: Vector[Vector[List[Any]]]): Vector[Vector[List[Any]]] = {
 
 			//For a given original vector v, assume g_i is the i-th lsh function
 			//v is reduced to reducedVectors(0) by g_0
 			//v is reduced to reducedVectors(1) by g_1 ...
+
+			/*
 			reducedVectors.zipWithIndex.foreach { case(reducedVec, indexOflshFunction) => {
 				val hashValue1 = primaryHash(reducedVec, tableSize)
 				val hashValue2 = secondaryHash(reducedVec)
 				
 				val oldList = table(indexOflshFunction)(hashValue1) 
-				val newElement = (hashValue2, indexOfVector)
-				*** = table(indexOflshFunction).updated(hashValue1, newElement )
+				val newElement = (hashValue2, indexOfVec)
+				 table(indexOflshFunction).updated(hashValue1, newElement )
 			}}
-		}
+			*/
+
+			def computeHashValueToTable(reducedVecs: List[(Vector[Int], Int)],
+								   table: Vector[Vector[List[Any]]]): Vector[Vector[List[Any]]]= {
+				reducedVecs match {
+					case Nil => table
+					case (head, indexOflshFunction) :: tail => {
+						val locationOfVec= primaryHash(head, tableSize)
+						val fingerprintOfVec= secondaryHash(head)
+						
+						val oldList = table(indexOflshFunction)(locationOfVec) 
+						val newElement = (fingerprintOfVec, nameOfVec)
+						val newtable = table.updated(indexOflshFunction,table(indexOflshFunction).updated(locationOfVec, newElement :: oldList))
+
+						computeHashValueToTable(tail, newtable)
+					}
+					case _ => println("Error");table
+				}
+			}
+
+			computeHashValueToTable(reducedVectors.zipWithIndex, table)
+
+		} //end of def tablingHas
 	}
 
 	def main(args: Array[String]){
@@ -140,9 +162,9 @@ object LSH {
 
 		//from the original paper & we let p2 = p(radiusR=1.0)
 		//val dimensionK = computeK(computeFunctionP(binWidthW, radiusR), numberOfVectors)
-		val dimensionK = 5 
+		val dimensionK = 10 
 		//val numberOflshL = computeLfromKP(dimensionK,successProbability)
-		val numberOflshL = 2
+		val numberOflshL = 5
 		val tableSize = numberOfVectors
 
 
@@ -155,8 +177,7 @@ object LSH {
 		
 		val hashFn = new HashFunctions(numberOflshL, dimensionK, dimensionD, tableSize, binWidthW)
 		
-		var a = 0
-
+/*
 		//改成讀一行即掉
 		learnVectors.zipWithIndex.foreach( {case (vector, indexOfVector) => {
 
@@ -165,21 +186,24 @@ object LSH {
 			hashFn.tableingHash(reducedVectors, indexOfVector)
 				
 		}}) //end of foreach
-
-		def computeHashValue(learnVec: ,table: ): = {
+*/
+		def computeHashValue(learnVec: List[(Vector[Double], Int)],
+		                     table: Vector[Vector[List[Any]]]): Vector[Vector[List[Any]]]= {
 			learnVec match {
-				case Nil => 
-				case head :: tail => {
-					val reducedVectors = hashFn.dotHash(head)
-					val newTable = hasFn.tablingHash(reducedVectors,table)
-					computeHashValue(tail,newTable)
+				case Nil => table
+				case (vec,nameOfVec) :: tail => {
+					val reducedVectors = hashFn.dotHash(vec)
+					val newTable = hashFn.tableHash(reducedVectors, nameOfVec, table)
+					computeHashValue(tail, newTable)
 				}
-				case _ =>
+				case _ => println("Error");table
 			}
 		}
 		val emptyTable = 
-		      Vector.fill(numberOfFunctionG)(List.fill(tableSize)(Nil))
-		val table = computeHashValue(learnVectors,emptyTable)
+		      Vector.fill(numberOflshL, tableSize)(Nil)
+		val table = computeHashValue(learnVectors.zipWithIndex , emptyTable)
+
+		println(table)
 
 	} //end of def main()
 }
