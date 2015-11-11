@@ -36,22 +36,40 @@ object LSH {
 	//c: | vector_x - vector_y | , i.e. distance of 2 point
 	//it is OK
 	def computeFunctionP(w: Double, c: Double):Double = {
-		  val x = w / c;
-			val M_SQRT2 = math.sqrt(2.0)
-			val M_2_SQRTPI = 2.0 / math.sqrt(math.Pi)
-			ERF(x / M_SQRT2) - M_2_SQRTPI / M_SQRT2 / x * (1 - math.exp(-(x*x) / 2));
+		val x = w / c
+		val M_SQRT2 = math.sqrt(2.0)
+		val M_2_SQRTPI = 2.0 / math.sqrt(math.Pi)
+		ERF(x / M_SQRT2) - M_2_SQRTPI / M_SQRT2 / x * (1 - math.exp(-(x*x) / 2));
 	}
 
 	//from E2LSH & manual
 	def computeLfromKP(k: Int, successProb: Double):Int = {
-			val p1 = computeFunctionP(binWidthW, radiusR)
-		  math.ceil(math.log(1 - successProb) / math.log(1 - math.pow(p1, k))).toInt;
+		val p1 = computeFunctionP(binWidthW, radiusR)
+		math.ceil(math.log(1 - successProb) / math.log(1 - math.pow(p1, k))).toInt;
 	}
 
 	//from the original paper
 	//   & http://cseweb.ucsd.edu/~dasgupta/254-embeddings/lawrence.pdf
 	def computeK(p2: Double,n: Int): Int = {
 		(math.log(n)/math.log(1.0/p2)).toInt
+	}
+
+	def innderProduct(v1: Vector[Double], v2: Vector[Double]): Double = {
+		var sum = 0.0
+		val len = v1.length
+		for(i <- 0 until len) {
+			sum = sum + v1(i) * v2(i)
+		}	
+		sum
+	}
+
+	def innderProductInt(v1: Vector[Int], v2: Vector[Long]): Long = {
+		var sum: Long = 0
+		val len = v1.length
+		for(i <- 0 until len) {
+			sum = sum + v1(i) * v2(i)
+		}	
+		sum
 	}
 
 	class HashFunctions(numberOfFunctionG: Int,
@@ -72,25 +90,31 @@ object LSH {
 		def dotHash(vectorV: Vector[Double]) = {
 			functionG.map( 
 				_.map( x => {
-					val dot = (vectorV zip x.vectorA).map{case (a,b) => a * b}.foldLeft(0.0)(_+_)
+					//!!! the functional coding style is bottleneck
+					//val dot = (vectorV zip x.vectorA).map{case (a,b) => a * b}.foldLeft(0.0)(_+_)
+
+					//MUCH faster than code above
+					val dot = innderProduct(vectorV, x.vectorA)
+
 					math.floor((dot + x.parameterB)/binWidthW).toInt
 				}).toVector
 			)
 			
 		}
 
-		private val functionH1 = IndexedSeq.fill(dimensionOfVectorG)((Random.nextDouble()*prime).toLong)
-		private val functionH2 = IndexedSeq.fill(dimensionOfVectorG)((Random.nextDouble()*prime).toLong)
+		private val functionH1 = Vector.fill(dimensionOfVectorG)((Random.nextDouble()*prime).toLong)
+		private val functionH2 = Vector.fill(dimensionOfVectorG)((Random.nextDouble()*prime).toLong)
 
-		private def primaryHash(v: IndexedSeq[Int], tableSize: Int) = {
+		private def primaryHash(v: Vector[Int], tableSize: Int) = {
 			val dot = (v zip functionH1).map{case (a,b) => a * b}.foldLeft(0L)(_+_)
+			//val dot = innderProductInt(v, functionH1)
+			//test println(dot == dou)
+
 			val x = dot % prime
 			if (x < 0)
 				((x + prime) % tableSize).toInt
 			else 
 				(x % tableSize).toInt
-			//val hashValue: Int = ((dot % prime)%tableSize).toInt
-			//hashValue
 		}
 
 		//dot = the value of inner product
@@ -117,17 +141,6 @@ object LSH {
 			//For a given original vector v, assume g_i is the i-th lsh function
 			//v is reduced to reducedVectors(0) by g_0
 			//v is reduced to reducedVectors(1) by g_1 ...
-
-			/*
-			reducedVectors.zipWithIndex.foreach { case(reducedVec, indexOflshFunction) => {
-				val hashValue1 = primaryHash(reducedVec, tableSize)
-				val hashValue2 = secondaryHash(reducedVec)
-				
-				val oldList = table(indexOflshFunction)(hashValue1) 
-				val newElement = (hashValue2, indexOfVec)
-				 table(indexOflshFunction).updated(hashValue1, newElement )
-			}}
-			*/
 
 			def computeHashValueToTable(reducedVecs: List[(Vector[Int], Int)],
 								   table: Vector[Vector[List[Any]]]): Vector[Vector[List[Any]]]= {
@@ -160,13 +173,15 @@ object LSH {
 		val numberOfVectors = learnVectors.length
 		val dimensionD = learnVectors(1).length
 
-		//from the original paper & we let p2 = p(radiusR=1.0)
+		//need to find a good way to dertermine parameter k
 		//val dimensionK = computeK(computeFunctionP(binWidthW, radiusR), numberOfVectors)
 		val dimensionK = 10 
-		//val numberOflshL = computeLfromKP(dimensionK,successProbability)
-		val numberOflshL = 5
-		val tableSize = numberOfVectors
 
+		val numberOflshL = computeLfromKP(dimensionK,successProbability)
+		//val numberOflshL = (computeLfromKP(dimensionK,successProbability)/100).toInt.max(100)
+
+		val tableSize = numberOfVectors
+		println("k = " + dimensionK + ", L = " + numberOflshL)
 
 		//?The value will be minus because radius is less than bin width
 		//println("p(R=1.0) = computeFunctionP(4.0,1.0) = " + computeFunctionP(4.0,1.0))
@@ -177,23 +192,19 @@ object LSH {
 		
 		val hashFn = new HashFunctions(numberOflshL, dimensionK, dimensionD, tableSize, binWidthW)
 		
-/*
-		//改成讀一行即掉
-		learnVectors.zipWithIndex.foreach( {case (vector, indexOfVector) => {
-
-			val reducedVectors = hashFn.dotHash(vector)
-
-			hashFn.tableingHash(reducedVectors, indexOfVector)
-				
-		}}) //end of foreach
-*/
 		def computeHashValue(learnVec: List[(Vector[Double], Int)],
 		                     table: Vector[Vector[List[Any]]]): Vector[Vector[List[Any]]]= {
 			learnVec match {
 				case Nil => table
 				case (vec,nameOfVec) :: tail => {
+					println("Vector " + nameOfVec + " of " + numberOfVectors)
+
 					val reducedVectors = hashFn.dotHash(vec)
+					//test val reducedVectors = List.fill(numberOflshL)(Vector.fill(dimensionK)(1))
+
+					//a little slow
 					val newTable = hashFn.tableHash(reducedVectors, nameOfVec, table)
+
 					computeHashValue(tail, newTable)
 				}
 				case _ => println("Error");table
@@ -203,7 +214,9 @@ object LSH {
 		      Vector.fill(numberOflshL, tableSize)(Nil)
 		val table = computeHashValue(learnVectors.zipWithIndex , emptyTable)
 
-		println(table)
+		for( element <- table){
+			println(element)
+		}
 
 	} //end of def main()
 }
