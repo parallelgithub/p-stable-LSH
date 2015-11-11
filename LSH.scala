@@ -133,6 +133,8 @@ object LSH {
 			hashValue
 		}
 
+/*		//version of two dimension table (i.e. table: Vector[Vector[List]])
+
 		//vectorG means g_i(v) for given v and for all i belonging to L
 		def tableHash(reducedVectors: List[Vector[Int]], 
 		                 nameOfVec: Int,
@@ -163,41 +165,78 @@ object LSH {
 			computeHashValueToTable(reducedVectors.zipWithIndex, table)
 
 		} //end of def tablingHas
-	}
+*/
+
+		//vectorG means g_i(v) for given v and for all i belonging to L
+		def tableHash(reducedVectors: List[Vector[Int]], 
+		                nameOfVec: Int,
+						table: Vector[List[Any]]): Vector[List[Any]] = {
+
+			//For a given original vector v, assume g_i is the i-th lsh function
+			//v is reduced to reducedVectors(0) by g_0
+			//v is reduced to reducedVectors(1) by g_1 ...
+
+			def computeHashValueToTable(reducedVecs: List[Vector[Int]],
+								   table: Vector[List[Any]]): Vector[List[Any]] = {
+				reducedVecs match {
+					case Nil => table
+					case head :: tail => {
+						val locationOfVec= primaryHash(head, tableSize)
+						val fingerprintOfVec= secondaryHash(head)
+						
+						val oldList = table(locationOfVec) 
+						val newElement = (fingerprintOfVec, nameOfVec)
+						val newtable = table.updated(locationOfVec, newElement :: oldList)
+
+						computeHashValueToTable(tail, newtable)
+					}
+					case _ => println("Error");table
+				}
+			}
+
+			computeHashValueToTable(reducedVectors, table)
+
+		} //end of def tablingHas
+
+
+		def findQuery (reducedQuerys: List[Vector[Int]]){
+
+		} //end of def findQuery
+
+	} //end of class HashFunctions
 
 	def main(args: Array[String]){
 		//val baseVectors = Source.fromFile("../dataset/sift/siftsmall/base.input").getLines.toList.map{_.split(" ").map{_.toDouble}.toVector}
-		//val queryVectors = Source.fromFile("../dataset/sift/siftsmall/query.input").getLines.toList.map{_.split(" ").toVector}
-		val learnVectors = Source.fromFile("../dataset/learn.input").getLines.toList.map{_.split(" ").map{_.toDouble}.toVector}
+		val queryVectors = Source.fromFile("../dataset/my_query.input").getLines.toList.map{_.split(" ").map{_.toDouble}.toVector}
+		val learnVectors = Source.fromFile("../dataset/siftsmall_learn.input").getLines.toList.map{_.split(" ").map{_.toDouble}.toVector}
 
 		val numberOfVectors = learnVectors.length
 		val dimensionD = learnVectors(1).length
+		println("Number of vectors from learn_file: " + numberOfVectors)
+		println("Dimension of the vector from learn_file : " + dimensionD)
 
 		//need to find a good way to dertermine parameter k
 		//val dimensionK = computeK(computeFunctionP(binWidthW, radiusR), numberOfVectors)
 		val dimensionK = 10 
-
 		val numberOflshL = computeLfromKP(dimensionK,successProbability)
-		//val numberOflshL = (computeLfromKP(dimensionK,successProbability)/100).toInt.max(100)
+		println("Reduced dimension k = " + dimensionK + ", Number of tables L = " + numberOflshL)
 
 		val tableSize = numberOfVectors
-		println("k = " + dimensionK + ", L = " + numberOflshL)
 
 		//?The value will be minus because radius is less than bin width
 		//println("p(R=1.0) = computeFunctionP(4.0,1.0) = " + computeFunctionP(4.0,1.0))
 
 
-		//learnVectors: 25000 * 128 List
 
 		
 		val hashFn = new HashFunctions(numberOflshL, dimensionK, dimensionD, tableSize, binWidthW)
 		
 		def computeHashValue(learnVec: List[(Vector[Double], Int)],
-		                     table: Vector[Vector[List[Any]]]): Vector[Vector[List[Any]]]= {
+		                     table: Vector[List[Any]]): Vector[List[Any]]= {
 			learnVec match {
 				case Nil => table
 				case (vec,nameOfVec) :: tail => {
-					println("Vector " + nameOfVec + " of " + numberOfVectors)
+					//println("Vector " + nameOfVec + " of " + numberOfVectors)
 
 					val reducedVectors = hashFn.dotHash(vec)
 					//test val reducedVectors = List.fill(numberOflshL)(Vector.fill(dimensionK)(1))
@@ -211,12 +250,28 @@ object LSH {
 			}
 		}
 		val emptyTable = 
-		      Vector.fill(numberOflshL, tableSize)(Nil)
+		      Vector.fill(tableSize)(Nil)
 		val table = computeHashValue(learnVectors.zipWithIndex , emptyTable)
 
-		for( element <- table){
-			println(element)
+		println
+		println("Number of vectors from query_file: " + queryVectors.length)
+		println("Dimension of the vector from query_file : " + queryVectors(1).length)
+		for(query <- queryVectors){
+			val reduceQuerys = hashFn.dotHash(query)	
+			hashFn.findQuery(reduceQuerys)
 		}
+	
+		var sum = 0
+
+		table.foreach { x =>
+			sum += x.length
+
+		}			
+		println("Sum = " + sum)
+		println("number of vector * L = " + numberOfVectors*numberOflshL)
+		
+				
+
 
 	} //end of def main()
 }
