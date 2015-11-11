@@ -7,9 +7,13 @@ object LSH {
 
 	val prime = (1L << 29) - 33
 
-	val binWidthW = 4.0
-	val radiusR = 1.0
+	//the case of w=4 and r=1 is not good
+	val binWidthW = 400.0
+	val radiusR = 100.0
 	val successProbability = 0.9
+	println("Bin width w = " + binWidthW)
+	println("Success Probability = " + successProbability)
+	println("Radius R = " + radiusR)
 
 	//from http://picomath.org/scala/Erf.scala.html
 	//   & http://www.johndcook.com/blog/cpp_erf/
@@ -105,7 +109,7 @@ object LSH {
 		private val functionH1 = Vector.fill(dimensionOfVectorG)((Random.nextDouble()*prime).toLong)
 		private val functionH2 = Vector.fill(dimensionOfVectorG)((Random.nextDouble()*prime).toLong)
 
-		private def primaryHash(v: Vector[Int], tableSize: Int) = {
+		private def primaryHash(v: Vector[Int]) = {
 			val dot = (v zip functionH1).map{case (a,b) => a * b}.foldLeft(0L)(_+_)
 			//val dot = innderProductInt(v, functionH1)
 			//test println(dot == dou)
@@ -181,7 +185,7 @@ object LSH {
 				reducedVecs match {
 					case Nil => table
 					case head :: tail => {
-						val locationOfVec= primaryHash(head, tableSize)
+						val locationOfVec= primaryHash(head)
 						val fingerprintOfVec= secondaryHash(head)
 						
 						val oldList = table(locationOfVec) 
@@ -199,7 +203,34 @@ object LSH {
 		} //end of def tablingHas
 
 
-		def findQuery (reducedQuerys: List[Vector[Int]]){
+		def computeOneQuery (reducedQuery: List[Vector[Int]],
+			           table: Vector[List[Any]]): Set[Int] = {
+
+			def computeEachReducedQuery(queries: List[Vector[Int]]): Set[Int] ={
+				queries match {
+					case head :: tail => {
+
+						val location = primaryHash(head)
+						val fingerprintOfQuery = secondaryHash(head)
+
+						def findFingerprint(pointList: List[Any]): Set[Int]= 
+							pointList match {
+								case (fingerprint, nameOfVec: Int) :: tail => {
+									if (fingerprint == fingerprintOfQuery){
+										findFingerprint(tail) + nameOfVec
+									}else
+										findFingerprint(tail)
+									}
+								case _ => Set.empty
+							}
+						
+						computeEachReducedQuery(tail) ++ findFingerprint(table(location))
+					}
+					case _ => Set.empty
+				}
+			}
+
+			computeEachReducedQuery(reducedQuery)
 
 		} //end of def findQuery
 
@@ -218,15 +249,15 @@ object LSH {
 		//need to find a good way to dertermine parameter k
 		//val dimensionK = computeK(computeFunctionP(binWidthW, radiusR), numberOfVectors)
 		val dimensionK = 10 
-		val numberOflshL = computeLfromKP(dimensionK,successProbability)
-		println("Reduced dimension k = " + dimensionK + ", Number of tables L = " + numberOflshL)
+		//val numberOflshL = computeLfromKP(dimensionK,successProbability)
+		val numberOflshL = computeLfromKP(dimensionK,successProbability).min(20)
+		println("Reduced dimension k = " + dimensionK)
+		println("Number of tables L = " + numberOflshL)
 
 		val tableSize = numberOfVectors
 
 		//?The value will be minus because radius is less than bin width
 		//println("p(R=1.0) = computeFunctionP(4.0,1.0) = " + computeFunctionP(4.0,1.0))
-
-
 
 		
 		val hashFn = new HashFunctions(numberOflshL, dimensionK, dimensionD, tableSize, binWidthW)
@@ -254,23 +285,16 @@ object LSH {
 		val table = computeHashValue(learnVectors.zipWithIndex , emptyTable)
 
 		println
+		println("Process queries...")
 		println("Number of vectors from query_file: " + queryVectors.length)
 		println("Dimension of the vector from query_file : " + queryVectors(1).length)
 		for(query <- queryVectors){
-			val reduceQuerys = hashFn.dotHash(query)	
-			hashFn.findQuery(reduceQuerys)
+			print("Query " + (queryVectors.indexOf(query)+1) + " : ")
+			val reducedQuery = hashFn.dotHash(query)	
+			val resultOfQuery = hashFn.computeOneQuery(reducedQuery, table)
+			println(resultOfQuery)
+			
 		}
-	
-		var sum = 0
-
-		table.foreach { x =>
-			sum += x.length
-
-		}			
-		println("Sum = " + sum)
-		println("number of vector * L = " + numberOfVectors*numberOflshL)
-		
-				
 
 
 	} //end of def main()

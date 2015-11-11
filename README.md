@@ -2,8 +2,11 @@
 
 本專案練習使用 p-stable distribution 實作 Locality-sensitive hashing，
 主要是參考2004paper以及其名為 E2LSH 的實作，後者在實作時略為修改方法，
-原paper是approximation algorithm，E2LSH則實作為random algorithm。
+原paper是解approximation version R-NN problem，E2LSH則是解random version R-NN problem。
 本專案主要依據的是E2LSH的實作方法。
+
+本專案解m-nearest neighbors problem，因此E2LSH中的R參數...
+E2LSH讓使用者輸入R值並訂R為目標，演算法用R與p算出機率lower bound，以求出欲達成目標所需的 k, L 值
 
 程式碼根據預先給定的所有vector建立hash table，query vector再從table裡計算nearest neighbors。
 
@@ -45,3 +48,4 @@ time consuming of two coding style:
 188.2s / 16.2s = 11.6 times
 
 2. read code of E2LSH
+https://www.facebook.com/notes/%E6%B4%AA%E5%A3%AB%E7%81%9D/%E6%82%85%E8%AE%80%E7%A8%8B%E5%BC%8F/1054461137918361
