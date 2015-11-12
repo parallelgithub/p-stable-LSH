@@ -110,9 +110,9 @@ object LSH {
 		private val functionH2 = Vector.fill(dimensionOfVectorG)((Random.nextDouble()*prime).toLong)
 
 		private def primaryHash(v: Vector[Int]) = {
-			val dot = (v zip functionH1).map{case (a,b) => a * b}.foldLeft(0L)(_+_)
-			//val dot = innderProductInt(v, functionH1)
-			//test println(dot == dou)
+
+			val dot = innderProductInt(v, functionH1)
+			//val dot = (v zip functionH1).map{case (a,b) => a * b}.foldLeft(0L)(_+_)
 
 			val x = dot % prime
 			if (x < 0)
@@ -124,7 +124,13 @@ object LSH {
 		//dot = the value of inner product
 		//the return value is dot%prime (or dot%prime + prime when negative)
 		//  where prime = (1L << 29) - 33
-		private def secondaryHash(v: IndexedSeq[Int]) = {
+		private def secondaryHash(v: Vector[Int]) = {
+			
+			val x = innderProductInt(v, functionH2) % prime
+			if (x < 0)  (x + prime).toInt else x.toInt
+			
+			/*
+			//Module Algorithm from E2LSH
 			val zipVector = (v zip functionH2).map{case (a,b) => a * b}
 
 			val bitFilter =  (1L << 29) - 1
@@ -135,6 +141,7 @@ object LSH {
 			)
 			val hashValue: Int = if (dot>=prime) (dot-prime).toInt else dot.toInt
 			hashValue
+			*/
 		}
 
 /*		//version of two dimension table (i.e. table: Vector[Vector[List]])
@@ -174,14 +181,14 @@ object LSH {
 		//vectorG means g_i(v) for given v and for all i belonging to L
 		def tableHash(reducedVectors: List[Vector[Int]], 
 		                nameOfVec: Int,
-						table: Vector[List[Any]]): Vector[List[Any]] = {
+						table: Vector[List[(Int, Int)]]): Vector[List[(Int, Int)]] = {
 
 			//For a given original vector v, assume g_i is the i-th lsh function
 			//v is reduced to reducedVectors(0) by g_0
 			//v is reduced to reducedVectors(1) by g_1 ...
 
 			def computeHashValueToTable(reducedVecs: List[Vector[Int]],
-								   table: Vector[List[Any]]): Vector[List[Any]] = {
+								   table: Vector[List[(Int, Int)]]): Vector[List[(Int, Int)]] = {
 				reducedVecs match {
 					case Nil => table
 					case head :: tail => {
@@ -204,7 +211,7 @@ object LSH {
 
 
 		def computeOneQuery (reducedQuery: List[Vector[Int]],
-			           table: Vector[List[Any]]): Set[Int] = {
+			           table: Vector[List[(Int, Int)]]): Set[Int] = {
 
 			def computeEachReducedQuery(queries: List[Vector[Int]]): Set[Int] ={
 				queries match {
@@ -213,7 +220,9 @@ object LSH {
 						val location = primaryHash(head)
 						val fingerprintOfQuery = secondaryHash(head)
 
-						def findFingerprint(pointList: List[Any]): Set[Int]= 
+						/*
+						//slow, not use it
+						def findFingerprint(pointList: List[(Int, Int)]): Set[Int]= 
 							pointList match {
 								case (fingerprint, nameOfVec: Int) :: tail => {
 									if (fingerprint == fingerprintOfQuery){
@@ -225,6 +234,9 @@ object LSH {
 							}
 						
 						computeEachReducedQuery(tail) ++ findFingerprint(table(location))
+						*/
+						
+						computeEachReducedQuery(tail) ++ table(location).filter(x => x._1 == fingerprintOfQuery).map{case(a,b)=>b}.toSet
 					}
 					case _ => Set.empty
 				}
@@ -238,7 +250,7 @@ object LSH {
 
 	def main(args: Array[String]){
 		//val baseVectors = Source.fromFile("../dataset/sift/siftsmall/base.input").getLines.toList.map{_.split(" ").map{_.toDouble}.toVector}
-		val queryVectors = Source.fromFile("../dataset/my_query.input").getLines.toList.map{_.split(" ").map{_.toDouble}.toVector}
+		val queryVectors = Source.fromFile("../dataset/sift_query.input").getLines.toList.map{_.split(" ").map{_.toDouble}.toVector}
 		val learnVectors = Source.fromFile("../dataset/siftsmall_learn.input").getLines.toList.map{_.split(" ").map{_.toDouble}.toVector}
 
 		val numberOfVectors = learnVectors.length
@@ -248,9 +260,10 @@ object LSH {
 
 		//need to find a good way to dertermine parameter k
 		//val dimensionK = computeK(computeFunctionP(binWidthW, radiusR), numberOfVectors)
-		val dimensionK = 10 
+		val dimensionK = 14 
+		val numberOflshL = 150
 		//val numberOflshL = computeLfromKP(dimensionK,successProbability)
-		val numberOflshL = computeLfromKP(dimensionK,successProbability).min(20)
+		//val numberOflshL = computeLfromKP(dimensionK,successProbability).min(150)
 		println("Reduced dimension k = " + dimensionK)
 		println("Number of tables L = " + numberOflshL)
 
@@ -263,7 +276,7 @@ object LSH {
 		val hashFn = new HashFunctions(numberOflshL, dimensionK, dimensionD, tableSize, binWidthW)
 		
 		def computeHashValue(learnVec: List[(Vector[Double], Int)],
-		                     table: Vector[List[Any]]): Vector[List[Any]]= {
+		                     table: Vector[List[(Int, Int)]]): Vector[List[(Int, Int)]]= {
 			learnVec match {
 				case Nil => table
 				case (vec,nameOfVec) :: tail => {
@@ -289,7 +302,8 @@ object LSH {
 		println("Number of vectors from query_file: " + queryVectors.length)
 		println("Dimension of the vector from query_file : " + queryVectors(1).length)
 		for(query <- queryVectors){
-			print("Query " + (queryVectors.indexOf(query)+1) + " : ")
+			print("Query " + (queryVectors.indexOf(query)+1) )
+			print(" of " + queryVectors.length + " : " )
 			val reducedQuery = hashFn.dotHash(query)	
 			val resultOfQuery = hashFn.computeOneQuery(reducedQuery, table)
 			println(resultOfQuery)
