@@ -8,8 +8,8 @@ object LSH {
 	val prime = (1L << 29) - 33
 
 	//the case of w=4 and r=1 is not good
-	val binWidthW = 400.0
-	val radiusR = 100.0
+	val binWidthW = 40.0
+	val radiusR = 200.0
 	val successProbability = 0.9
 	println("Bin width w = " + binWidthW)
 	println("Success Probability = " + successProbability)
@@ -58,7 +58,7 @@ object LSH {
 		(math.log(n)/math.log(1.0/p2)).toInt
 	}
 
-	def innderProduct(v1: Vector[Double], v2: Vector[Double]): Double = {
+	def innerProduct(v1: Vector[Double], v2: Vector[Double]): Double = {
 		var sum = 0.0
 		val len = v1.length
 		for(i <- 0 until len) {
@@ -67,7 +67,7 @@ object LSH {
 		sum
 	}
 
-	def innderProductInt(v1: Vector[Int], v2: Vector[Long]): Long = {
+	def innerProductInt(v1: Vector[Int], v2: Vector[Long]): Long = {
 		var sum: Long = 0
 		val len = v1.length
 		for(i <- 0 until len) {
@@ -75,6 +75,9 @@ object LSH {
 		}	
 		sum
 	}
+
+	def distance(v1: Vector[Double], v2: Vector[Double]): Double = 
+		math.sqrt(v1.view.zip(v2).map{case(a,b) => (a-b)*(a-b)}.reduceLeft(_+_))
 
 	class HashFunctions(numberOfFunctionG: Int,
 	                    dimensionOfVectorG: Int,
@@ -98,7 +101,7 @@ object LSH {
 					//val dot = (vectorV zip x.vectorA).map{case (a,b) => a * b}.foldLeft(0.0)(_+_)
 
 					//MUCH faster than code above
-					val dot = innderProduct(vectorV, x.vectorA)
+					val dot = innerProduct(vectorV, x.vectorA)
 
 					math.floor((dot + x.parameterB)/binWidthW).toInt
 				}).toVector
@@ -111,7 +114,7 @@ object LSH {
 
 		private def primaryHash(v: Vector[Int]) = {
 
-			val dot = innderProductInt(v, functionH1)
+			val dot = innerProductInt(v, functionH1)
 			//val dot = (v zip functionH1).map{case (a,b) => a * b}.foldLeft(0L)(_+_)
 
 			val x = dot % prime
@@ -126,7 +129,7 @@ object LSH {
 		//  where prime = (1L << 29) - 33
 		private def secondaryHash(v: Vector[Int]) = {
 			
-			val x = innderProductInt(v, functionH2) % prime
+			val x = innerProductInt(v, functionH2) % prime
 			if (x < 0)  (x + prime).toInt else x.toInt
 			
 			/*
@@ -250,7 +253,7 @@ object LSH {
 
 	def main(args: Array[String]){
 		//val baseVectors = Source.fromFile("../dataset/sift/siftsmall/base.input").getLines.toList.map{_.split(" ").map{_.toDouble}.toVector}
-		val queryVectors = Source.fromFile("../dataset/sift_query.input").getLines.toList.map{_.split(" ").map{_.toDouble}.toVector}
+		val queryVectors = Source.fromFile("../dataset/siftsmall_query.input").getLines.toList.map{_.split(" ").map{_.toDouble}.toVector}
 		val learnVectors = Source.fromFile("../dataset/siftsmall_learn.input").getLines.toList.map{_.split(" ").map{_.toDouble}.toVector}
 
 		val numberOfVectors = learnVectors.length
@@ -266,6 +269,10 @@ object LSH {
 		//val numberOflshL = computeLfromKP(dimensionK,successProbability).min(150)
 		println("Reduced dimension k = " + dimensionK)
 		println("Number of tables L = " + numberOflshL)
+
+		println
+		print("Begin preprocessing......")
+		val startPreprocessTime = System.nanoTime
 
 		val tableSize = numberOfVectors
 
@@ -297,18 +304,32 @@ object LSH {
 		      Vector.fill(tableSize)(Nil)
 		val table = computeHashValue(learnVectors.zipWithIndex , emptyTable)
 
+		val endPreprocessTime = System.nanoTime
 		println
-		println("Process queries...")
-		println("Number of vectors from query_file: " + queryVectors.length)
-		println("Dimension of the vector from query_file : " + queryVectors(1).length)
+		println("Preprocessing time : " + (endPreprocessTime - startPreprocessTime)/1000000000d + " seconds")
+		println
+		println("Number of query vectors from query_file: " + queryVectors.length)
+		println("Dimension of each vector from query_file : " + queryVectors(1).length)
+		println
+		val startQueryTime = System.nanoTime
+
 		for(query <- queryVectors){
-			print("Query " + (queryVectors.indexOf(query)+1) )
-			print(" of " + queryVectors.length + " : " )
+			print("Query " + queryVectors.indexOf(query) + " : " ) //to be improved
 			val reducedQuery = hashFn.dotHash(query)	
 			val resultOfQuery = hashFn.computeOneQuery(reducedQuery, table)
-			println(resultOfQuery)
+
+			//println(resultOfQuery)
+			//output the neighbors with sorted distance
+			val resultOfQueryList = resultOfQuery.map{qq => (qq, distance(learnVectors(qq), query))}.toList.sortWith((a,b) => a._2 < b._2)
+			println
+			for ( x <- resultOfQueryList) 
+				println("%8d  ".format(x._1) + "Distance: " + x._2)
 			
 		}
+
+		val endQueryTime = System.nanoTime
+		println
+		println("Total query time : " + (endQueryTime - startQueryTime)/1000000000d + " seconds")
 
 
 	} //end of def main()
