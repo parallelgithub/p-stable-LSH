@@ -27,6 +27,7 @@ Each line represents the coordinate of a vertor.
 A line contains M real numbers separated by a space, 
 where M is the dimension of a vector.
 The file format is as the following:
+
 	coordinate_1_of_point_1 coordinate_2_of_point_1 ... coordinate_D_of_point_1
 	coordinate_1_of_point_2 coordinate_2_of_point_2 ... coordinate_D_of_point_2
 	...
@@ -36,9 +37,9 @@ The file format is as the following:
 1.	Functional style vs. Imperative style
 
 	When I implement the inner product of two vectors, I found that the functional style programming is slower than the imperative style programming.
-functional coding :
+	* functional coding :
         `val dot = (vectorV zip x.vectorA).map{case (a,b) => a * b}.foldLeft(0.0)(_+_)`
-imperative coding :
+	* imperative coding :
 		`for(i <- 0 until len) sum = sum + v1(i) * v2(i)`
 
 	Functional coding style in scala sometimes may not be slow: http://stackoverflow.com/questions/2794823/is-scala-functional-programming-slower-than-traditional-coding
