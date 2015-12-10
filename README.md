@@ -37,7 +37,7 @@ The file format is as the following:
 
 	When I implement the inner product of two vectors, I found that the functional style programming is slower than the imperative style programming.
 functional coding :
-        val dot = (vectorV zip x.vectorA).map{case (a,b) => a * b}.foldLeft(0.0)(_+_)
+        `val dot = (vectorV zip x.vectorA).map{case (a,b) => a * b}.foldLeft(0.0)(_+_)`
 imperative coding :
 		`for(i <- 0 until len) sum = sum + v1(i) * v2(i)`
 
@@ -47,5 +47,5 @@ imperative coding :
 	"The critical trade-off for us is that writing clean Scala is faster, less error prone, and easier to maintain than the alternative."
 	https://www.sumologic.com/2012/07/23/3-tips-for-writing-performant-scala/
 
-1.	Read code of E2LSH
+2.	Read code of E2LSH
 	https://www.facebook.com/notes/%E6%B4%AA%E5%A3%AB%E7%81%9D/%E6%82%85%E8%AE%80%E7%A8%8B%E5%BC%8F/1054461137918361
