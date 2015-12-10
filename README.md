@@ -1,27 +1,23 @@
 # Introduction
 
-本專案練習使用 p-stable distribution 實作 Locality-sensitive hashing，
-主要是參考2004paper以及其名為 E2LSH 的實作，後者在實作時略為修改方法，
-原paper是解approximation version R-NN problem，E2LSH則是解random version R-NN problem。
-本專案主要依據的是E2LSH的實作方法。
+本專案練習使用 p-stable distribution 實作 Locality-sensitive hashing，簡稱LSH。
 
-本專案解m-nearest neighbors problem，因此E2LSH中的R參數...
-E2LSH讓使用者輸入R值並訂R為目標，演算法用R與p算出機率lower bound，以求出欲達成目標所需的 k, L 值
+LSH演算法用來解決 nearest neighbor problem，這個 problem 在許多領域皆有廣泛的應用：如 data compression, databases & data mining, information retrieval, image & video databases, machine learning, pattern recognition, statistics and data analysis。LSH演算法的價值在於當 nearest neighbor problem 為高維度時，提供了 sublinear-time 的解法，因此LSH適合用於高維度的特徵處理。
 
-程式碼根據預先給定的所有vector建立hash table，query vector再從table裡計算nearest neighbors。
+本專案主要依據 E2LSH 的實作方法: 
+http://www.mit.edu/~andoni/LSH/
+我們參考了 E2LSH 的原始碼及其 manual。
 
-建立hash table的過程大致分為兩步驟。第一步先將vector降低維度，第二步再將降維的vector計算hash value存進table。
-第一步是降維用的方法是 Locality-sensitive hashing (LSH)，第二步就是一般的hashing。
+解 nearest neighbor problem 的流程大致如下：
+根據給定的所有 vector 建立 hash table，然後每個 query vector 再從 hash table 裡尋找 nearest neighbors。LSH演算法是整個流程的關鍵步驟。
 
-p function是p-stable LSH實作的核心之一。
-p function是由paper而來，在paper中有定義及其積分形式 在E2LSH中有實作
-它提供了hash collision機率的lower bound，
-因此也可幫我們推算k, L，
-以保證整個LSH scheme成功的機率。
-
+建立 hash table 的過程分為兩步驟：第一步先將vector降低維度，第二步再將降維的vector計算hash value存進table。第一步是降維用的方法就是 Locality-sensitive hashing (LSH)，第二步則是一般的hashing。
 
 # Input Files format
-## Data set file
+There are two input files. One contains base vectors, and the other contains query vectors.
+This project find the nearest neighbor of each query vectors among all base vectors.
+
+Both files have the same format.
 The file contains N lines, where N is the number of vertors. 
 Each line represents the coordinate of a vertor.
 A line contains M real numbers separated by a space, 
@@ -47,6 +43,9 @@ The file format is as the following:
 	"If we wanted to write the fastest code possible, we would essentially write Scala as if it were C."
 	"The critical trade-off for us is that writing clean Scala is faster, less error prone, and easier to maintain than the alternative."
 	https://www.sumologic.com/2012/07/23/3-tips-for-writing-performant-scala/
+
+	We compare several different ways of implementation of vector inner product: 
+	https://github.com/parallelgithub/vector-inner-product
 
 2.	Read code of E2LSH
 	https://www.facebook.com/notes/%E6%B4%AA%E5%A3%AB%E7%81%9D/%E6%82%85%E8%AE%80%E7%A8%8B%E5%BC%8F/1054461137918361
