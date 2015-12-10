@@ -5,15 +5,19 @@ import scala.math
 
 object LSH {
 
-	val prime = (1L << 29) - 33
+	//val prime = (1L << 29) - 33
+	val prime: Long = (1L << 32) - 5
 
 	//the case of w=4 and r=1 is not good
-	val binWidthW = 40.0
-	val radiusR = 200.0
-	val successProbability = 0.9
+	val binWidthW = 50.0
+		val dimensionK = 5 
+		val numberOflshL = 10
+	val radiusR = 400.0 //useless
+	val successProbability = 0.9 //useless
+	println("All the parameters --- ")
 	println("Bin width w = " + binWidthW)
-	println("Success Probability = " + successProbability)
-	println("Radius R = " + radiusR)
+	println("Success Probability = " + successProbability + " (useless)" )
+	println("Radius R = " + radiusR + " (useless)" )
 
 	//from http://picomath.org/scala/Erf.scala.html
 	//   & http://www.johndcook.com/blog/cpp_erf/
@@ -258,13 +262,11 @@ object LSH {
 
 		val numberOfVectors = learnVectors.length
 		val dimensionD = learnVectors(1).length
-		println("Number of vectors from learn_file: " + numberOfVectors)
-		println("Dimension of the vector from learn_file : " + dimensionD)
+		println("Number of vectors from input file: " + numberOfVectors)
+		println("Dimension of the vector from input file : " + dimensionD)
 
 		//need to find a good way to dertermine parameter k
 		//val dimensionK = computeK(computeFunctionP(binWidthW, radiusR), numberOfVectors)
-		val dimensionK = 14 
-		val numberOflshL = 150
 		//val numberOflshL = computeLfromKP(dimensionK,successProbability)
 		//val numberOflshL = computeLfromKP(dimensionK,successProbability).min(150)
 		println("Reduced dimension k = " + dimensionK)
@@ -308,11 +310,12 @@ object LSH {
 		println
 		println("Preprocessing time : " + (endPreprocessTime - startPreprocessTime)/1000000000d + " seconds")
 		println
-		println("Number of query vectors from query_file: " + queryVectors.length)
-		println("Dimension of each vector from query_file : " + queryVectors(1).length)
+		println("Number of query vectors from query file: " + queryVectors.length)
+		println("Dimension of each vector from query file : " + queryVectors(1).length)
 		println
 		val startQueryTime = System.nanoTime
 
+		println("Process queries --- ")
 		for(query <- queryVectors){
 			print("Query " + queryVectors.indexOf(query) + " : " ) //to be improved
 			val reducedQuery = hashFn.dotHash(query)	
@@ -323,7 +326,7 @@ object LSH {
 			val resultOfQueryList = resultOfQuery.map{qq => (qq, distance(learnVectors(qq), query))}.toList.sortWith((a,b) => a._2 < b._2)
 			println
 			for ( x <- resultOfQueryList) 
-				println("%8d  ".format(x._1) + "Distance: " + x._2)
+				println("  Vector%8d, ".format(x._1) + "distance = " + x._2)
 			
 		}
 
