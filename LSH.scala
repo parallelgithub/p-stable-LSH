@@ -2,6 +2,8 @@ import scala.io.Source
 import scala.util.Random
 import scala.math
 
+// 除以 R
+// 一對一比對vector
 
 object LSH {
 
@@ -9,8 +11,8 @@ object LSH {
 	val prime: Long = (1L << 32) - 5
 
 	//the case of w=4 and r=1 is not good
-	val binWidthW = 50.0
-		val dimensionK = 5 
+	val binWidthW = 150.0
+		val dimensionK = 8 
 		val numberOflshL = 10
 	val radiusR = 400.0 //useless
 	val successProbability = 0.9 //useless
@@ -82,6 +84,16 @@ object LSH {
 
 	def distance(v1: Vector[Double], v2: Vector[Double]): Double = 
 		math.sqrt(v1.view.zip(v2).map{case(a,b) => (a-b)*(a-b)}.reduceLeft(_+_))
+
+	def sqrDistance(v1: Vector[Double], v2: Vector[Double]): Double = {
+		var sum = 0.0
+		val len = v1.length
+		for(i <- 0 until len) {
+			sum = sum + (v1(i) - v2(i))*(v1(i) - v2(i))
+		}	
+		sum
+	}
+		
 
 	class HashFunctions(numberOfFunctionG: Int,
 	                    dimensionOfVectorG: Int,
@@ -292,6 +304,9 @@ object LSH {
 					//println("Vector " + nameOfVec + " of " + numberOfVectors)
 
 					val reducedVectors = hashFn.dotHash(vec)
+						println
+						println("Vector " + nameOfVec + " reduced dimension :")
+						(reducedVectors.foreach {println(_)})
 					//test val reducedVectors = List.fill(numberOflshL)(Vector.fill(dimensionK)(1))
 
 					//a little slow
@@ -321,13 +336,30 @@ object LSH {
 			val reducedQuery = hashFn.dotHash(query)	
 			val resultOfQuery = hashFn.computeOneQuery(reducedQuery, table)
 
+			println
+				println("reduced dimension ")
+				reducedQuery.foreach{ println(_)}
+
 			//println(resultOfQuery)
 			//output the neighbors with sorted distance
 			val resultOfQueryList = resultOfQuery.map{qq => (qq, distance(learnVectors(qq), query))}.toList.sortWith((a,b) => a._2 < b._2)
-			println
 			for ( x <- resultOfQueryList) 
 				println("  Vector%8d, ".format(x._1) + "distance = " + x._2)
-			
+
+			val exactDistance = List.tabulate(numberOfVectors)(x => (x, sqrDistance(learnVectors(x),query)))
+			println(" exact distance: ")
+
+			def printExactDistance(count: Int, list: List[(Int, Double)]) {
+				if(count < 5){
+					val minV = list.minBy(_._2)
+					println("%8d, ".format(minV._1) + math.sqrt(minV._2))
+					val nextList = list.filter(x => x._1 != minV._1)
+					printExactDistance(count+1, nextList)
+				}
+			}
+			printExactDistance(0, exactDistance)
+			println
+				
 		}
 
 		val endQueryTime = System.nanoTime
