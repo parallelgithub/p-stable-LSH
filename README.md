@@ -29,6 +29,24 @@ The file format is as the following:
 	...
 	coordinate_1_of_point_N coordinate_2_of_point_N ... coordinate_D_of_point_N
 
+# 正確率
+在固定參數為 k=8 L=12 的情形下
+
+按原演算法實作 並設參數 w=4.0 只會找到與 query 距離為0的點
+放寬參數到 w=300.0 可得到較多點 但是發現真正距離較近的點並沒有被演算法找出來
+
+於是我們檢視 E2LSH 的原始碼 發現他多加一個步驟 將原始座標除以參數 R
+因此我們也在我們的實作中加入此步驟
+結果真正距離較近的點就被找出來了(不論 w=4.0 w=300.0)
+
+除以參數 R 這個步驟意即對於所有點的原座標同時縮放
+我們的實作在加入此步驟後 幾乎就與 E2LSH 的行為一致了
+而在 manual 中似乎未點明此步驟
+
+目前處理query的速度十分慢
+這是由於參數k L選得不夠好 使得計算出來的候選點過多 
+加上scala處理這些候選點又稍慢
+
 # What I learn
 1.	Functional style vs. Imperative style
 

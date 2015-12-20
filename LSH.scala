@@ -11,15 +11,15 @@ object LSH {
 	val prime: Long = (1L << 32) - 5
 
 	//the case of w=4 and r=1 is not good
-	val binWidthW = 150.0
-		val dimensionK = 8 
-		val numberOflshL = 10
-	val radiusR = 400.0 //useless
+	val binWidthW = 4.0
+		val dimensionK = 10 
+		val numberOflshL = 5 
+	val radiusR = 200.0 
 	val successProbability = 0.9 //useless
 	println("All the parameters --- ")
 	println("Bin width w = " + binWidthW)
 	println("Success Probability = " + successProbability + " (useless)" )
-	println("Radius R = " + radiusR + " (useless)" )
+	println("Radius R = " + radiusR )
 
 	//from http://picomath.org/scala/Erf.scala.html
 	//   & http://www.johndcook.com/blog/cpp_erf/
@@ -68,7 +68,8 @@ object LSH {
 		var sum = 0.0
 		val len = v1.length
 		for(i <- 0 until len) {
-			sum = sum + v1(i) * v2(i)
+			//sum = sum + v1(i) * v2(i)
+			sum = sum + (v1(i)/radiusR) * v2(i)
 		}	
 		sum
 	}
@@ -162,9 +163,8 @@ object LSH {
 			hashValue
 			*/
 		}
-
-/*		//version of two dimension table (i.e. table: Vector[Vector[List]])
-
+/*
+		//version of two dimension table (i.e. table: Vector[Vector[List]])
 		//vectorG means g_i(v) for given v and for all i belonging to L
 		def tableHash(reducedVectors: List[Vector[Int]], 
 		                 nameOfVec: Int,
@@ -197,6 +197,7 @@ object LSH {
 		} //end of def tablingHas
 */
 
+		//version of one dimension table (i.e. table: Vector[List])
 		//vectorG means g_i(v) for given v and for all i belonging to L
 		def tableHash(reducedVectors: List[Vector[Int]], 
 		                nameOfVec: Int,
@@ -304,9 +305,10 @@ object LSH {
 					//println("Vector " + nameOfVec + " of " + numberOfVectors)
 
 					val reducedVectors = hashFn.dotHash(vec)
-						println
-						println("Vector " + nameOfVec + " reduced dimension :")
-						(reducedVectors.foreach {println(_)})
+						//println
+						//println("Vector " + nameOfVec + " reduced dimension :")
+						//(reducedVectors.foreach {println(_)})
+
 					//test val reducedVectors = List.fill(numberOflshL)(Vector.fill(dimensionK)(1))
 
 					//a little slow
@@ -337,15 +339,19 @@ object LSH {
 			val resultOfQuery = hashFn.computeOneQuery(reducedQuery, table)
 
 			println
-				println("reduced dimension ")
-				reducedQuery.foreach{ println(_)}
+				//println("reduced dimension ")
+				//reducedQuery.foreach{ println(_)}
 
-			//println(resultOfQuery)
 			//output the neighbors with sorted distance
-			val resultOfQueryList = resultOfQuery.map{qq => (qq, distance(learnVectors(qq), query))}.toList.sortWith((a,b) => a._2 < b._2)
+			//val resultOfQueryList = resultOfQuery.map{qq => (qq, distance(learnVectors(qq), query))}.toList.sortWith((a,b) => a._2 < b._2)
+			//filter distance by radius R & output the neighbors with sorted distance
+			//val resultOfQueryList = resultOfQuery.map{qq => (qq, distance(learnVectors(qq), query))}.toList.filter(a => a._2 < radiusR ).sortWith((a,b) => a._2 < b._2)
+			val raR2 = radiusR * radiusR
+			val resultOfQueryList = resultOfQuery.filter(qq => sqrDistance(learnVectors(qq), query) < raR2 ).map{qq => (qq, distance(learnVectors(qq), query))}.toList.sortWith((a,b) => a._2 < b._2)
 			for ( x <- resultOfQueryList) 
 				println("  Vector%8d, ".format(x._1) + "distance = " + x._2)
 
+/*
 			val exactDistance = List.tabulate(numberOfVectors)(x => (x, sqrDistance(learnVectors(x),query)))
 			println(" exact distance: ")
 
@@ -359,6 +365,7 @@ object LSH {
 			}
 			printExactDistance(0, exactDistance)
 			println
+*/			
 				
 		}
 
